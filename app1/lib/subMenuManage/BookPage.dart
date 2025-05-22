@@ -180,6 +180,81 @@ class _BookPageState extends State<BookPage> {
     }
   }
 
+  Widget TextBookID(TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(Icons.book, color: Colors.red.shade800, size: 25),
+        labelText: "ລະຫັດປຶ້ມ",
+      ),
+    );
+  }
+
+  Widget TextBookName(TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(Icons.title, color: Colors.red.shade800, size: 25),
+        labelText: "ຊື່ປຶ້ມ",
+      ),
+    );
+  }
+
+  Widget TextPrice(TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(
+          Icons.attach_money,
+          color: Colors.red.shade800,
+          size: 25,
+        ),
+        labelText: "ລາຄາ",
+      ),
+    );
+  }
+
+  Widget TextPage(TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(Icons.pages, color: Colors.red.shade800, size: 25),
+        labelText: "ຈໍານວນໜ້າ",
+      ),
+    );
+  }
+
+  Widget TextDataInfo(
+    TextEditingController bookIdController,
+    TextEditingController bookNameController,
+    TextEditingController priceController,
+    TextEditingController pageController,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Divider(color: Colors.red, thickness: 2),
+        TextBookID(bookIdController),
+        SizedBox(height: 10),
+        TextBookName(bookNameController),
+        SizedBox(height: 10),
+        TextPrice(priceController),
+        SizedBox(height: 10),
+        TextPage(pageController),
+      ],
+    );
+  }
+
   void showCreateDialog() {
     final bookIdController = TextEditingController();
     final bookNameController = TextEditingController();
@@ -190,42 +265,21 @@ class _BookPageState extends State<BookPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Add New Book"),
+          title: const Text("ຈັດການຂໍ້ມູນ"),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: bookIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Book ID (optional)',
-                    hintText: 'Leave empty for auto-generation',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: bookNameController,
-                  decoration: const InputDecoration(labelText: 'Book Name'),
-                ),
-                TextField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: 'Price'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: pageController,
-                  decoration: const InputDecoration(labelText: 'Page'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+            child: TextDataInfo(
+              bookIdController,
+              bookNameController,
+              priceController,
+              pageController,
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+              ),
               onPressed: () {
                 // Validate inputs
                 if (bookNameController.text.isEmpty ||
@@ -253,7 +307,23 @@ class _BookPageState extends State<BookPage> {
                 createBook(newBook);
                 Navigator.pop(context);
               },
-              child: const Text("Create"),
+              child: Text(
+                "ບັນທຶກຂໍ້ມູນ",
+                style: TextStyle(color: Colors.white, fontSize: 22),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                "ຍົກເລີກ",
+                style: TextStyle(color: Colors.white, fontSize: 22),
+              ),
             ),
           ],
         );
@@ -262,6 +332,9 @@ class _BookPageState extends State<BookPage> {
   }
 
   void showEditDialog(Map<String, dynamic> book) {
+    final bookIdController = TextEditingController(
+      text: book['bookid'].toString(),
+    );
     final bookNameController = TextEditingController(text: book['bookname']);
     final priceController = TextEditingController(
       text: book['price'].toString(),
@@ -272,34 +345,21 @@ class _BookPageState extends State<BookPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Edit Book"),
+          title: const Text("ແກ້ໄຂຂໍ້ມູນ"),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: bookNameController,
-                  decoration: const InputDecoration(labelText: 'Book Name'),
-                ),
-                TextField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: 'Price'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: pageController,
-                  decoration: const InputDecoration(labelText: 'Page'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+            child: TextDataInfo(
+              bookIdController,
+              bookNameController,
+              priceController,
+              pageController,
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+              ),
               onPressed: () {
                 // Validate inputs
                 if (bookNameController.text.isEmpty ||
@@ -319,39 +379,23 @@ class _BookPageState extends State<BookPage> {
                 updateBook(book['bookid'].toString(), updatedData);
                 Navigator.pop(context);
               },
-              child: const Text("Update"),
+              child: Text(
+                "ອັບເດດ",
+                style: TextStyle(color: Colors.white, fontSize: 22),
+              ),
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  void showDetailDialog(Map<String, dynamic> book) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(book['bookname'] ?? 'Book Details'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Book ID: ${book['bookid']}"),
-                const SizedBox(height: 8),
-                Text("Book Name: ${book['bookname']}"),
-                const SizedBox(height: 8),
-                Text("Price: ${book['price']}"),
-                const SizedBox(height: 8),
-                Text("Pages: ${book['page']}"),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                "ຍົກເລີກ",
+                style: TextStyle(color: Colors.white, fontSize: 22),
+              ),
             ),
           ],
         );
@@ -363,40 +407,70 @@ class _BookPageState extends State<BookPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            !isSearching
-                ? const Text("ປຶ້ມ")
-                : TextField(
-                  controller: searchController,
-                  decoration: const InputDecoration(
-                    hintText: "Search books...",
-                    hintStyle: TextStyle(color: Colors.white70),
-                    border: InputBorder.none,
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                  onSubmitted: (value) => searchBooks(value),
-                ),
-        actions: [
-          IconButton(
-            icon: Icon(isSearching ? Icons.close : Icons.search),
-            onPressed: () {
-              setState(() {
-                if (isSearching) {
-                  isSearching = false;
-                  searchController.clear();
+        backgroundColor: Colors.red,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(25, 0, 25, 5),
+            child: TextField(
+              controller: searchController,
+              onChanged: (value) {
+                if (value.trim().isEmpty) {
                   fetchAllData();
                 } else {
-                  isSearching = true;
+                  searchBooks(value.trim());
                 }
-              });
-            },
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(
+                  Icons.input,
+                  size: 30,
+                  color: Colors.red,
+                ),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        size: 30,
+                        color: Colors.red,
+                      ),
+                      onPressed: () {
+                        searchController.clear();
+                        fetchAllData();
+                      },
+                    ),
+                    const SizedBox(width: 15),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.search,
+                        size: 30,
+                        color: Colors.blue,
+                      ),
+                      onPressed: () {
+                        searchBooks(searchController.text.trim());
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                ),
+              ),
+            ),
           ),
-          IconButton(onPressed: fetchAllData, icon: const Icon(Icons.refresh)),
+        ),
+        actions: [
+          IconButton(
+            onPressed: fetchAllData,
+            icon: const Icon(Icons.refresh, size: 35, color: Colors.black),
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: showCreateDialog,
-        child: const Icon(Icons.add),
+        title: const Text("ຈັດການຂໍ້ມູນປຶ້ມ"),
       ),
       body:
           isLoading
@@ -410,90 +484,117 @@ class _BookPageState extends State<BookPage> {
                   style: const TextStyle(fontSize: 18),
                 ),
               )
-              : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(6),
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text("Book ID")),
-                    DataColumn(label: Text("Book Name")),
-
-                    DataColumn(label: Text("Actions")),
-                  ],
-                  rows:
-                      data.map<DataRow>((book) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Text(book['bookid']?.toString() ?? ''),
-                              onTap: () => showDetailDialog(book),
+              : Center(
+                child: ListView.builder(
+                  itemCount: data.length,
+                  itemBuilder: (context, index) {
+                    final getdata = data[index];
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: Text(
+                            '${getdata["bookid"]}',
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
                             ),
-                            DataCell(
-                              Text(book['bookname']?.toString() ?? ''),
-                              onTap: () => showDetailDialog(book),
+                          ),
+                          title: Text(
+                            '${getdata["bookname"]}',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
                             ),
-
-                            DataCell(
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () => showEditDialog(book),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder:
-                                            (context) => AlertDialog(
-                                              title: const Text(
-                                                "Delete Confirmation",
-                                              ),
-                                              content: Text(
-                                                "Delete '${book['bookname']}'?",
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                      ),
-                                                  child: const Text("Cancel"),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.pop(context);
-                                                    deleteBook(
-                                                      book['bookid'].toString(),
-                                                    );
-                                                  },
-                                                  child: const Text(
-                                                    "Delete",
-                                                    style: TextStyle(
-                                                      color: Colors.red,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                      );
-                                    },
-                                  ),
-                                ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Price: ${getdata["price"]}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                                const SizedBox(width: 20),
+                                Text(
+                                  'Pages: ${getdata["page"]}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () => showEditDialog(getdata),
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.green,
+                                  size: 25,
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder:
+                                        (context) => AlertDialog(
+                                          title: const Text(
+                                            "ທ່ານຕ້ອງການລືບເເທ້ບໍ",
+                                          ),
+                                          content: Text(
+                                            "ລືບ '${getdata['bookname']}'?",
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              child: const Text("ຍົກເລີກ"),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                deleteBook(
+                                                  getdata['bookid'].toString(),
+                                                );
+                                              },
+                                              child: const Text(
+                                                "ລືບ",
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(color: Colors.black, thickness: 1),
+                      ],
+                    );
+                  },
                 ),
               ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.red,
+        onPressed: () {
+          showCreateDialog();
+        },
+        child: Icon(Icons.add, color: Colors.white, size: 45),
+      ),
     );
   }
 }
