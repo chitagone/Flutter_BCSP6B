@@ -10,7 +10,7 @@ const db = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "root",
-  database: "dbcsp6b",
+  database: "dbcspb",
 });
 
 db.connect((err) => {
@@ -21,6 +21,11 @@ db.connect((err) => {
 
   console.log("Connected to database");
 });
+
+app.get("/", (req, res) => {
+  res.send("Welcome! Try /book or /search endpoints.");
+});
+
 
 // Get all books
 app.get("/book", (req, res) => {
@@ -258,6 +263,6 @@ app.get("/quicksearch", (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log("Server is running on port 5000");
+app.listen(3000, () => {
+  console.log("Server is running on port 3000");
 });
