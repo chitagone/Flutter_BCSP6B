@@ -6,6 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Database connection
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -15,249 +16,221 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.log("Cannot connect to database" + err);
+    console.log("Cannot connect to database: " + err);
     return;
   }
-
   console.log("Connected to database");
 });
 
+// ------------------ BOOK API ------------------
+
 // Get all books
 app.get("/book", (req, res) => {
-  try {
-    const sql = "SELECT * FROM tbbook";
-    db.query(sql, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(400).send();
-      }
-      return res.status(200).send(result);
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
-  }
+  const sql = "SELECT * FROM tbbook";
+  db.query(sql, (err, result) => {
+    if (err) return res.status(400).send(err);
+    return res.status(200).send(result);
+  });
 });
 
 // Search book by ID or name
 app.get("/book/:bid", (req, res) => {
-  try {
-    const bid = req.params.bid;
-    const sql =
-      "SELECT * FROM tbbook WHERE bookid LIKE ? or bookname LIKE ? or price LIKE ? or page LIKE ?";
-    const val = [`${bid}`, `%${bid}%`, `${bid}`, `${bid}`];
-    db.query(sql, val, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(400).send();
-      }
-      return res.status(200).send(result);
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
-  }
+  const bid = req.params.bid;
+  const sql =
+    "SELECT * FROM tbbook WHERE bookid LIKE ? or bookname LIKE ? or price LIKE ? or page LIKE ?";
+  const val = [`${bid}`, `%${bid}%`, `${bid}`, `${bid}`];
+  db.query(sql, val, (err, result) => {
+    if (err) return res.status(400).send(err);
+    return res.status(200).send(result);
+  });
 });
 
 // Create new book
 app.post("/book", (req, res) => {
-  try {
-    const { bookid, bookname, price, page } = req.body;
-
-    if (!bookname || !price || !page) {
-      return res
-        .status(400)
-        .send({ message: "Please provide all required fields" });
-    }
-
-    let sql;
-    let values;
-
-    // If bookid is provided, use it; otherwise, let MySQL auto-increment
-    if (bookid) {
-      sql =
-        "INSERT INTO tbbook (bookid, bookname, price, page) VALUES (?, ?, ?, ?)";
-      values = [bookid, bookname, price, page];
-    } else {
-      sql = "INSERT INTO tbbook (bookname, price, page) VALUES (?, ?, ?)";
-      values = [bookname, price, page];
-    }
-
-    db.query(sql, values, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send({ message: "Database error", error: err });
-      }
-
-      return res.status(201).send({
-        message: "Book created successfully",
-        bookId: bookid || result.insertId,
-      });
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
+  const { bookid, bookname, price, page } = req.body;
+  if (!bookname || !price || !page) {
+    return res
+      .status(400)
+      .send({ message: "Please provide all required fields" });
   }
+
+  let sql, values;
+  if (bookid) {
+    sql =
+      "INSERT INTO tbbook (bookid, bookname, price, page) VALUES (?, ?, ?, ?)";
+    values = [bookid, bookname, price, page];
+  } else {
+    sql = "INSERT INTO tbbook (bookname, price, page) VALUES (?, ?, ?)";
+    values = [bookname, price, page];
+  }
+
+  db.query(sql, values, (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res
+      .status(201)
+      .send({ message: "Book created", bookId: bookid || result.insertId });
+  });
 });
 
 // Update book
 app.put("/book/:id", (req, res) => {
-  try {
-    const bookId = req.params.id;
-    const { bookname, price, page } = req.body;
-
-    if (!bookname || !price || !page) {
-      return res
-        .status(400)
-        .send({ message: "Please provide all required fields" });
-    }
-
-    const sql =
-      "UPDATE tbbook SET bookname = ?, price = ?, page = ? WHERE bookid = ?";
-    const values = [bookname, price, page, bookId];
-
-    db.query(sql, values, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send({ message: "Database error", error: err });
-      }
-
-      if (result.affectedRows === 0) {
-        return res.status(404).send({ message: "Book not found" });
-      }
-
-      return res.status(200).send({ message: "Book updated successfully" });
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
+  const bookId = req.params.id;
+  const { bookname, price, page } = req.body;
+  if (!bookname || !price || !page) {
+    return res.status(400).send({ message: "All fields are required" });
   }
+
+  const sql =
+    "UPDATE tbbook SET bookname = ?, price = ?, page = ? WHERE bookid = ?";
+  db.query(sql, [bookname, price, page, bookId], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Book not found" });
+    return res.status(200).send({ message: "Book updated" });
+  });
 });
 
 // Delete book
 app.delete("/book/:id", (req, res) => {
-  try {
-    const bookId = req.params.id;
-
-    const sql = "DELETE FROM tbbook WHERE bookid = ?";
-
-    db.query(sql, [bookId], (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send({ message: "Database error", error: err });
-      }
-
-      if (result.affectedRows === 0) {
-        return res.status(404).send({ message: "Book not found" });
-      }
-
-      return res.status(200).send({ message: "Book deleted successfully" });
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
-  }
+  const bookId = req.params.id;
+  const sql = "DELETE FROM tbbook WHERE bookid = ?";
+  db.query(sql, [bookId], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Book not found" });
+    return res.status(200).send({ message: "Book deleted" });
+  });
 });
 
-// Advanced search endpoint
-app.get("/search", (req, res) => {
-  try {
-    // Get search parameters from query string
-    const { query, field, sort, order, limit } = req.query;
+// ------------------ UNIT API ------------------
 
-    // Default values if not provided
-    const searchQuery = query || "";
-    const searchField = field || "all"; // 'all' or specific field name
-    const sortBy = sort || "bookid";
-    const sortOrder = order?.toUpperCase() === "DESC" ? "DESC" : "ASC";
-    const resultLimit = limit ? parseInt(limit) : 100;
-
-    let sql = "";
-    let values = [];
-
-    // Build the query based on search field
-    if (searchField === "all") {
-      sql = `
-        SELECT * FROM tbbook 
-        WHERE bookid LIKE ? 
-        OR bookname LIKE ? 
-        OR price LIKE ? 
-        OR page LIKE ?
-        ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ?
-      `;
-      values = [
-        `%${searchQuery}%`,
-        `%${searchQuery}%`,
-        `%${searchQuery}%`,
-        `%${searchQuery}%`,
-        resultLimit,
-      ];
-    } else {
-      // Search in specific field only
-      sql = `
-        SELECT * FROM tbbook 
-        WHERE ${searchField} LIKE ? 
-        ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ?
-      `;
-      values = [`%${searchQuery}%`, resultLimit];
-    }
-
-    db.query(sql, values, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send({ message: "Database error", error: err });
-      }
-
-      return res.status(200).send({
-        results: result,
-        count: result.length,
-        query: searchQuery,
-        field: searchField,
-        sortBy: sortBy,
-        sortOrder: sortOrder,
-      });
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
-  }
+// Get all units
+app.get("/unit", (req, res) => {
+  const sql = "SELECT * FROM tbunit";
+  db.query(sql, (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res.status(200).send(result);
+  });
 });
 
-// Simple search by any field (alternative implementation)
-app.get("/quicksearch", (req, res) => {
-  try {
-    const searchTerm = req.query.q || "";
-
-    if (searchTerm.trim() === "") {
-      return res.status(400).send({ message: "Search term is required" });
-    }
-
-    const sql = `
-      SELECT * FROM tbbook 
-      WHERE bookid LIKE ? 
-      OR bookname LIKE ? 
-      OR price LIKE ? 
-      OR page LIKE ?
-    `;
-
-    const values = Array(4).fill(`%${searchTerm}%`);
-
-    db.query(sql, values, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send({ message: "Database error", error: err });
-      }
-
-      return res.status(200).send(result);
-    });
-  } catch (err) {
-    console.log("Error: " + err);
-    return res.status(500).send({ message: "Server error", error: err });
-  }
+// Get unit by ID
+app.get("/unit/:id", (req, res) => {
+  const uid = req.params.id;
+  const sql = "SELECT * FROM tbunit WHERE uid = ?";
+  db.query(sql, [uid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.length === 0)
+      return res.status(404).send({ message: "Unit not found" });
+    return res.status(200).send(result[0]);
+  });
 });
 
+// Create new unit
+app.post("/unit", (req, res) => {
+  const { uname } = req.body;
+  if (!uname) return res.status(400).send({ message: "Unit name is required" });
+
+  const sql = "INSERT INTO tbunit (uname) VALUES (?)";
+  db.query(sql, [uname], (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res
+      .status(201)
+      .send({ message: "Unit created", uid: result.insertId });
+  });
+});
+
+// Update unit
+app.put("/unit/:id", (req, res) => {
+  const uid = req.params.id;
+  const { uname } = req.body;
+  if (!uname) return res.status(400).send({ message: "Unit name is required" });
+
+  const sql = "UPDATE tbunit SET uname = ? WHERE uid = ?";
+  db.query(sql, [uname, uid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Unit not found" });
+    return res.status(200).send({ message: "Unit updated" });
+  });
+});
+
+// Delete unit
+app.delete("/unit/:id", (req, res) => {
+  const uid = req.params.id;
+  const sql = "DELETE FROM tbunit WHERE uid = ?";
+  db.query(sql, [uid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Unit not found" });
+    return res.status(200).send({ message: "Unit deleted" });
+  });
+});
+
+// Get all categories
+app.get("/category", (req, res) => {
+  const sql = "SELECT * FROM tbcategory";
+  db.query(sql, (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res.status(200).send(result);
+  });
+});
+
+// Get category by ID
+app.get("/category/:id", (req, res) => {
+  const cid = req.params.id;
+  const sql = "SELECT * FROM tbcategory WHERE cid = ?";
+  db.query(sql, [cid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.length === 0)
+      return res.status(404).send({ message: "Category not found" });
+    return res.status(200).send(result[0]);
+  });
+});
+
+// Create new category
+app.post("/category", (req, res) => {
+  const { cname } = req.body;
+  if (!cname)
+    return res.status(400).send({ message: "Category name is required" });
+
+  const sql = "INSERT INTO tbcategory (cname) VALUES (?)";
+  db.query(sql, [cname], (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res
+      .status(201)
+      .send({ message: "Category created", cid: result.insertId });
+  });
+});
+
+// Update category
+app.put("/category/:id", (req, res) => {
+  const cid = req.params.id;
+  const { cname } = req.body;
+  if (!cname)
+    return res.status(400).send({ message: "Category name is required" });
+
+  const sql = "UPDATE tbcategory SET cname = ? WHERE cid = ?";
+  db.query(sql, [cname, cid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Category not found" });
+    return res.status(200).send({ message: "Category updated" });
+  });
+});
+
+// Delete category
+app.delete("/category/:id", (req, res) => {
+  const cid = req.params.id;
+  const sql = "DELETE FROM tbcategory WHERE cid = ?";
+  db.query(sql, [cid], (err, result) => {
+    if (err) return res.status(500).send(err);
+    if (result.affectedRows === 0)
+      return res.status(404).send({ message: "Category not found" });
+    return res.status(200).send({ message: "Category deleted" });
+  });
+});
+
+// ------------------ START SERVER ------------------
 app.listen(5000, () => {
   console.log("Server is running on port 5000");
 });
