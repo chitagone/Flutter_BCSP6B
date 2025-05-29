@@ -24,20 +24,30 @@ db.connect((err) => {
 
 // ------------------ BOOK API ------------------
 
-// Get all books
+// Get all books with category and unit details
 app.get("/book", (req, res) => {
-  const sql = "SELECT * FROM tbbook";
+  const sql = `
+    SELECT b.*, c.cname as categoryName, u.uname as unitName 
+    FROM tbbook b 
+    LEFT JOIN tbcategory c ON b.categoryId = c.cid 
+    LEFT JOIN tbunit u ON b.unitId = u.uid
+  `;
   db.query(sql, (err, result) => {
     if (err) return res.status(400).send(err);
     return res.status(200).send(result);
   });
 });
 
-// Search book by ID or name
+// Search book by ID or name with category and unit details
 app.get("/book/:bid", (req, res) => {
   const bid = req.params.bid;
-  const sql =
-    "SELECT * FROM tbbook WHERE bookid LIKE ? or bookname LIKE ? or price LIKE ? or page LIKE ?";
+  const sql = `
+    SELECT b.*, c.cname as categoryName, u.uname as unitName 
+    FROM tbbook b 
+    LEFT JOIN tbcategory c ON b.categoryId = c.cid 
+    LEFT JOIN tbunit u ON b.unitId = u.uid
+    WHERE b.bookid LIKE ? OR b.bookname LIKE ? OR b.price LIKE ? OR b.page LIKE ?
+  `;
   const val = [`${bid}`, `%${bid}%`, `${bid}`, `${bid}`];
   db.query(sql, val, (err, result) => {
     if (err) return res.status(400).send(err);
@@ -47,47 +57,161 @@ app.get("/book/:bid", (req, res) => {
 
 // Create new book
 app.post("/book", (req, res) => {
-  const { bookid, bookname, price, page } = req.body;
-  if (!bookname || !price || !page) {
-    return res
-      .status(400)
-      .send({ message: "Please provide all required fields" });
+  const { bookid, bookname, price, page, categoryId, unitId } = req.body;
+
+  if (!bookid || !bookname || !price || !page) {
+    return res.status(400).send({
+      message: "Please provide bookid, bookname, price, and page",
+    });
   }
 
-  let sql, values;
-  if (bookid) {
-    sql =
-      "INSERT INTO tbbook (bookid, bookname, price, page) VALUES (?, ?, ?, ?)";
-    values = [bookid, bookname, price, page];
-  } else {
-    sql = "INSERT INTO tbbook (bookname, price, page) VALUES (?, ?, ?)";
-    values = [bookname, price, page];
-  }
+  // Validate foreign keys exist
+  const validateFK = () => {
+    return new Promise((resolve, reject) => {
+      let validations = [];
 
-  db.query(sql, values, (err, result) => {
-    if (err) return res.status(500).send(err);
-    return res
-      .status(201)
-      .send({ message: "Book created", bookId: bookid || result.insertId });
-  });
+      if (categoryId) {
+        validations.push(
+          new Promise((res, rej) => {
+            db.query(
+              "SELECT cid FROM tbcategory WHERE cid = ?",
+              [categoryId],
+              (err, result) => {
+                if (err) rej(err);
+                else if (result.length === 0)
+                  rej(new Error("Category not found"));
+                else res();
+              }
+            );
+          })
+        );
+      }
+
+      if (unitId) {
+        validations.push(
+          new Promise((res, rej) => {
+            db.query(
+              "SELECT uid FROM tbunit WHERE uid = ?",
+              [unitId],
+              (err, result) => {
+                if (err) rej(err);
+                else if (result.length === 0) rej(new Error("Unit not found"));
+                else res();
+              }
+            );
+          })
+        );
+      }
+
+      if (validations.length === 0) {
+        resolve();
+      } else {
+        Promise.all(validations).then(resolve).catch(reject);
+      }
+    });
+  };
+
+  validateFK()
+    .then(() => {
+      const sql =
+        "INSERT INTO tbbook (bookid, bookname, price, page, categoryId, unitId) VALUES (?, ?, ?, ?, ?, ?)";
+      const values = [
+        bookid,
+        bookname,
+        price,
+        page,
+        categoryId || null,
+        unitId || null,
+      ];
+
+      db.query(sql, values, (err, result) => {
+        if (err) return res.status(500).send(err);
+        return res.status(201).send({
+          message: "Book created",
+          bookId: bookid,
+        });
+      });
+    })
+    .catch((error) => {
+      return res.status(400).send({ message: error.message });
+    });
 });
 
 // Update book
 app.put("/book/:id", (req, res) => {
   const bookId = req.params.id;
-  const { bookname, price, page } = req.body;
+  const { bookname, price, page, categoryId, unitId } = req.body;
+
   if (!bookname || !price || !page) {
-    return res.status(400).send({ message: "All fields are required" });
+    return res.status(400).send({
+      message: "bookname, price, and page are required",
+    });
   }
 
-  const sql =
-    "UPDATE tbbook SET bookname = ?, price = ?, page = ? WHERE bookid = ?";
-  db.query(sql, [bookname, price, page, bookId], (err, result) => {
-    if (err) return res.status(500).send(err);
-    if (result.affectedRows === 0)
-      return res.status(404).send({ message: "Book not found" });
-    return res.status(200).send({ message: "Book updated" });
-  });
+  // Validate foreign keys exist
+  const validateFK = () => {
+    return new Promise((resolve, reject) => {
+      let validations = [];
+
+      if (categoryId) {
+        validations.push(
+          new Promise((res, rej) => {
+            db.query(
+              "SELECT cid FROM tbcategory WHERE cid = ?",
+              [categoryId],
+              (err, result) => {
+                if (err) rej(err);
+                else if (result.length === 0)
+                  rej(new Error("Category not found"));
+                else res();
+              }
+            );
+          })
+        );
+      }
+
+      if (unitId) {
+        validations.push(
+          new Promise((res, rej) => {
+            db.query(
+              "SELECT uid FROM tbunit WHERE uid = ?",
+              [unitId],
+              (err, result) => {
+                if (err) rej(err);
+                else if (result.length === 0) rej(new Error("Unit not found"));
+                else res();
+              }
+            );
+          })
+        );
+      }
+
+      if (validations.length === 0) {
+        resolve();
+      } else {
+        Promise.all(validations).then(resolve).catch(reject);
+      }
+    });
+  };
+
+  validateFK()
+    .then(() => {
+      const sql =
+        "UPDATE tbbook SET bookname = ?, price = ?, page = ?, categoryId = ?, unitId = ? WHERE bookid = ?";
+      db.query(
+        sql,
+        [bookname, price, page, categoryId || null, unitId || null, bookId],
+        (err, result) => {
+          if (err) return res.status(500).send(err);
+          if (result.affectedRows === 0)
+            return res.status(404).send({ message: "Book not found" });
+          return res.status(200).send({ message: "Book updated" });
+        }
+      );
+    })
+    .catch((error) => {
+      return res.status(400).send({ message: error.message });
+    });
 });
 
 // Delete book
@@ -99,6 +223,38 @@ app.delete("/book/:id", (req, res) => {
     if (result.affectedRows === 0)
       return res.status(404).send({ message: "Book not found" });
     return res.status(200).send({ message: "Book deleted" });
+  });
+});
+
+// Get books by category
+app.get("/book/category/:categoryId", (req, res) => {
+  const categoryId = req.params.categoryId;
+  const sql = `
+    SELECT b.*, c.cname as categoryName, u.uname as unitName 
+    FROM tbbook b 
+    LEFT JOIN tbcategory c ON b.categoryId = c.cid 
+    LEFT JOIN tbunit u ON b.unitId = u.uid
+    WHERE b.categoryId = ?
+  `;
+  db.query(sql, [categoryId], (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res.status(200).send(result);
+  });
+});
+
+// Get books by unit
+app.get("/book/unit/:unitId", (req, res) => {
+  const unitId = req.params.unitId;
+  const sql = `
+    SELECT b.*, c.cname as categoryName, u.uname as unitName 
+    FROM tbbook b 
+    LEFT JOIN tbcategory c ON b.categoryId = c.cid 
+    LEFT JOIN tbunit u ON b.unitId = u.uid
+    WHERE b.unitId = ?
+  `;
+  db.query(sql, [unitId], (err, result) => {
+    if (err) return res.status(500).send(err);
+    return res.status(200).send(result);
   });
 });
 
@@ -154,17 +310,32 @@ app.put("/unit/:id", (req, res) => {
   });
 });
 
-// Delete unit
+// Delete unit (with cascade check)
 app.delete("/unit/:id", (req, res) => {
   const uid = req.params.id;
-  const sql = "DELETE FROM tbunit WHERE uid = ?";
-  db.query(sql, [uid], (err, result) => {
+
+  // Check if unit is referenced by any books
+  const checkSql = "SELECT COUNT(*) as count FROM tbbook WHERE unitId = ?";
+  db.query(checkSql, [uid], (err, result) => {
     if (err) return res.status(500).send(err);
-    if (result.affectedRows === 0)
-      return res.status(404).send({ message: "Unit not found" });
-    return res.status(200).send({ message: "Unit deleted" });
+
+    if (result[0].count > 0) {
+      return res.status(400).send({
+        message: "Cannot delete unit. It is referenced by existing books.",
+      });
+    }
+
+    const deleteSql = "DELETE FROM tbunit WHERE uid = ?";
+    db.query(deleteSql, [uid], (err, result) => {
+      if (err) return res.status(500).send(err);
+      if (result.affectedRows === 0)
+        return res.status(404).send({ message: "Unit not found" });
+      return res.status(200).send({ message: "Unit deleted" });
+    });
   });
 });
+
+// ------------------ CATEGORY API ------------------
 
 // Get all categories
 app.get("/category", (req, res) => {
@@ -218,15 +389,28 @@ app.put("/category/:id", (req, res) => {
   });
 });
 
-// Delete category
+// Delete category (with cascade check)
 app.delete("/category/:id", (req, res) => {
   const cid = req.params.id;
-  const sql = "DELETE FROM tbcategory WHERE cid = ?";
-  db.query(sql, [cid], (err, result) => {
+
+  // Check if category is referenced by any books
+  const checkSql = "SELECT COUNT(*) as count FROM tbbook WHERE categoryId = ?";
+  db.query(checkSql, [cid], (err, result) => {
     if (err) return res.status(500).send(err);
-    if (result.affectedRows === 0)
-      return res.status(404).send({ message: "Category not found" });
-    return res.status(200).send({ message: "Category deleted" });
+
+    if (result[0].count > 0) {
+      return res.status(400).send({
+        message: "Cannot delete category. It is referenced by existing books.",
+      });
+    }
+
+    const deleteSql = "DELETE FROM tbcategory WHERE cid = ?";
+    db.query(deleteSql, [cid], (err, result) => {
+      if (err) return res.status(500).send(err);
+      if (result.affectedRows === 0)
+        return res.status(404).send({ message: "Category not found" });
+      return res.status(200).send({ message: "Category deleted" });
+    });
   });
 });
 

@@ -12,6 +12,8 @@ class BookPage extends StatefulWidget {
 class _BookPageState extends State<BookPage> {
   final String baseUrl = "http://localhost:5000"; // Use localhost or your IP
   List data = [];
+  List categories = [];
+  List units = [];
   bool isLoading = true;
   bool isSearching = false;
   final TextEditingController searchController = TextEditingController();
@@ -20,6 +22,8 @@ class _BookPageState extends State<BookPage> {
   void initState() {
     super.initState();
     fetchAllData();
+    fetchCategories();
+    fetchUnits();
   }
 
   @override
@@ -56,6 +60,36 @@ class _BookPageState extends State<BookPage> {
     }
   }
 
+  Future<void> fetchCategories() async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/category"));
+      if (response.statusCode == 200) {
+        setState(() {
+          categories = json.decode(response.body);
+        });
+      } else {
+        print("Error fetching categories: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Exception fetching categories: $e");
+    }
+  }
+
+  Future<void> fetchUnits() async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/unit"));
+      if (response.statusCode == 200) {
+        setState(() {
+          units = json.decode(response.body);
+        });
+      } else {
+        print("Error fetching units: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Exception fetching units: $e");
+    }
+  }
+
   Future<void> searchBooks(String query) async {
     if (query.isEmpty) {
       fetchAllData();
@@ -68,13 +102,10 @@ class _BookPageState extends State<BookPage> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse("$baseUrl/search?query=$query"),
-      );
+      final response = await http.get(Uri.parse("$baseUrl/book/$query"));
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
         setState(() {
-          data = responseData['results'] ?? [];
+          data = json.decode(response.body);
           isLoading = false;
         });
       } else {
@@ -234,11 +265,63 @@ class _BookPageState extends State<BookPage> {
     );
   }
 
+  Widget CategoryDropdown(int? selectedCategoryId, Function(int?) onChanged) {
+    return DropdownButtonFormField<int>(
+      value: selectedCategoryId,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(Icons.category, color: Colors.red.shade800, size: 25),
+        labelText: "ປະເພດ",
+      ),
+      items: [
+        const DropdownMenuItem<int>(value: null, child: Text("ເລືອກປະເພດ")),
+        ...categories.map<DropdownMenuItem<int>>((category) {
+          return DropdownMenuItem<int>(
+            value: category['cid'],
+            child: Text(category['cname']),
+          );
+        }).toList(),
+      ],
+      onChanged: onChanged,
+    );
+  }
+
+  Widget UnitDropdown(int? selectedUnitId, Function(int?) onChanged) {
+    return DropdownButtonFormField<int>(
+      value: selectedUnitId,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+        filled: true,
+        prefixIcon: Icon(
+          Icons.straighten,
+          color: Colors.red.shade800,
+          size: 25,
+        ),
+        labelText: "ຫົວໜ່ວຍ",
+      ),
+      items: [
+        const DropdownMenuItem<int>(value: null, child: Text("ເລືອກຫົວໜ່ວຍ")),
+        ...units.map<DropdownMenuItem<int>>((unit) {
+          return DropdownMenuItem<int>(
+            value: unit['uid'],
+            child: Text(unit['uname']),
+          );
+        }).toList(),
+      ],
+      onChanged: onChanged,
+    );
+  }
+
   Widget TextDataInfo(
     TextEditingController bookIdController,
     TextEditingController bookNameController,
     TextEditingController priceController,
     TextEditingController pageController,
+    int? selectedCategoryId,
+    int? selectedUnitId,
+    Function(int?) onCategoryChanged,
+    Function(int?) onUnitChanged,
   ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -251,6 +334,10 @@ class _BookPageState extends State<BookPage> {
         TextPrice(priceController),
         SizedBox(height: 10),
         TextPage(pageController),
+        SizedBox(height: 10),
+        CategoryDropdown(selectedCategoryId, onCategoryChanged),
+        SizedBox(height: 10),
+        UnitDropdown(selectedUnitId, onUnitChanged),
       ],
     );
   }
@@ -260,72 +347,97 @@ class _BookPageState extends State<BookPage> {
     final bookNameController = TextEditingController();
     final priceController = TextEditingController();
     final pageController = TextEditingController();
+    int? selectedCategoryId;
+    int? selectedUnitId;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("ຈັດການຂໍ້ມູນ"),
-          content: SingleChildScrollView(
-            child: TextDataInfo(
-              bookIdController,
-              bookNameController,
-              priceController,
-              pageController,
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("ຈັດການຂໍ້ມູນ"),
+              content: SingleChildScrollView(
+                child: TextDataInfo(
+                  bookIdController,
+                  bookNameController,
+                  priceController,
+                  pageController,
+                  selectedCategoryId,
+                  selectedUnitId,
+                  (value) {
+                    setDialogState(() {
+                      selectedCategoryId = value;
+                    });
+                  },
+                  (value) {
+                    setDialogState(() {
+                      selectedUnitId = value;
+                    });
+                  },
+                ),
               ),
-              onPressed: () {
-                // Validate inputs
-                if (bookNameController.text.isEmpty ||
-                    priceController.text.isEmpty ||
-                    pageController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Book name, price and page are required'),
-                    ),
-                  );
-                  return;
-                }
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+                  ),
+                  onPressed: () {
+                    // Validate inputs
+                    if (bookIdController.text.isEmpty ||
+                        bookNameController.text.isEmpty ||
+                        priceController.text.isEmpty ||
+                        pageController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Book ID, name, price and page are required',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
 
-                final newBook = {
-                  "bookname": bookNameController.text,
-                  "price": int.tryParse(priceController.text) ?? 0,
-                  "page": int.tryParse(pageController.text) ?? 0,
-                };
+                    final newBook = <String, dynamic>{
+                      "bookid": bookIdController.text,
+                      "bookname": bookNameController.text,
+                      "price": int.tryParse(priceController.text) ?? 0,
+                      "page": int.tryParse(pageController.text) ?? 0,
+                    };
 
-                // Add bookId if provided
-                if (bookIdController.text.isNotEmpty) {
-                  newBook["bookid"] = bookIdController.text;
-                }
+                    // Add category and unit if selected
+                    if (selectedCategoryId != null) {
+                      newBook["categoryId"] = selectedCategoryId;
+                    }
+                    if (selectedUnitId != null) {
+                      newBook["unitId"] = selectedUnitId;
+                    }
 
-                createBook(newBook);
-                Navigator.pop(context);
-              },
-              child: Text(
-                "ບັນທຶກຂໍ້ມູນ",
-                style: TextStyle(color: Colors.white, fontSize: 22),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                "ຍົກເລີກ",
-                style: TextStyle(color: Colors.white, fontSize: 22),
-              ),
-            ),
-          ],
+                    createBook(newBook);
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "ບັນທຶກຂໍ້ມູນ",
+                    style: TextStyle(color: Colors.white, fontSize: 22),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    "ຍົກເລີກ",
+                    style: TextStyle(color: Colors.white, fontSize: 22),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -341,63 +453,91 @@ class _BookPageState extends State<BookPage> {
     );
     final pageController = TextEditingController(text: book['page'].toString());
 
+    // FIX: Safely cast the values from JSON to int?
+    int? selectedCategoryId =
+        book['categoryId'] != null ? book['categoryId'] as int : null;
+    int? selectedUnitId = book['unitId'] != null ? book['unitId'] as int : null;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("ແກ້ໄຂຂໍ້ມູນ"),
-          content: SingleChildScrollView(
-            child: TextDataInfo(
-              bookIdController,
-              bookNameController,
-              priceController,
-              pageController,
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("ແກ້ໄຂຂໍ້ມູນ"),
+              content: SingleChildScrollView(
+                child: TextDataInfo(
+                  bookIdController,
+                  bookNameController,
+                  priceController,
+                  pageController,
+                  selectedCategoryId,
+                  selectedUnitId,
+                  (value) {
+                    setDialogState(() {
+                      selectedCategoryId = value;
+                    });
+                  },
+                  (value) {
+                    setDialogState(() {
+                      selectedUnitId = value;
+                    });
+                  },
+                ),
               ),
-              onPressed: () {
-                // Validate inputs
-                if (bookNameController.text.isEmpty ||
-                    priceController.text.isEmpty ||
-                    pageController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('All fields are required')),
-                  );
-                  return;
-                }
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+                  ),
+                  onPressed: () {
+                    // Validate inputs
+                    if (bookNameController.text.isEmpty ||
+                        priceController.text.isEmpty ||
+                        pageController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All fields are required'),
+                        ),
+                      );
+                      return;
+                    }
 
-                final updatedData = {
-                  "bookname": bookNameController.text,
-                  "price": int.tryParse(priceController.text) ?? 0,
-                  "page": int.tryParse(pageController.text) ?? 0,
-                };
-                updateBook(book['bookid'].toString(), updatedData);
-                Navigator.pop(context);
-              },
-              child: Text(
-                "ອັບເດດ",
-                style: TextStyle(color: Colors.white, fontSize: 22),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                "ຍົກເລີກ",
-                style: TextStyle(color: Colors.white, fontSize: 22),
-              ),
-            ),
-          ],
+                    final updatedData = <String, dynamic>{
+                      "bookname": bookNameController.text,
+                      "price": int.tryParse(priceController.text) ?? 0,
+                      "page": int.tryParse(pageController.text) ?? 0,
+                    };
+
+                    // Add category and unit (null values are handled by the API)
+                    updatedData["categoryId"] = selectedCategoryId;
+                    updatedData["unitId"] = selectedUnitId;
+
+                    updateBook(book['bookid'].toString(), updatedData);
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "ອັບເດດ",
+                    style: TextStyle(color: Colors.white, fontSize: 22),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    padding: EdgeInsets.symmetric(vertical: 18, horizontal: 15),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    "ຍົກເລີກ",
+                    style: TextStyle(color: Colors.white, fontSize: 22),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -511,16 +651,41 @@ class _BookPageState extends State<BookPage> {
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4.0),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Price: ${getdata["price"]}',
-                                  style: const TextStyle(fontSize: 16),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Price: ${getdata["price"]}',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Text(
+                                      'Pages: ${getdata["page"]}',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 20),
-                                Text(
-                                  'Pages: ${getdata["page"]}',
-                                  style: const TextStyle(fontSize: 16),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Category: ${getdata["categoryName"] ?? "N/A"}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 15),
+                                    Text(
+                                      'Unit: ${getdata["unitName"] ?? "N/A"}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
